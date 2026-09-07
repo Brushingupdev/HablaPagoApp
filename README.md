@@ -1,32 +1,37 @@
-# HablaPago
+<div align="center">
 
-Aplicación Android para comerciantes que detecta notificaciones de pagos de Yape y Plin, registra los cobros y los anuncia por voz.
+# HablaPago 🗣️💸
 
-El producto actual se llama **HablaPago**. El repositorio remoto conserva temporalmente el nombre `PagoVoz` porque `Brushingupdev/HablaPago` ya existe como otro proyecto público.
+**Escucha tus cobros de Yape y Plin. Cobra sin mirar el celular.**
 
-## Estructura
+![Kotlin](https://img.shields.io/badge/Kotlin-7F52FF?style=flat&logo=kotlin&logoColor=white)
+![Compose](https://img.shields.io/badge/Jetpack_Compose-4285F4?style=flat&logo=jetpackcompose&logoColor=white)
+![Android](https://img.shields.io/badge/Android_8%2B-3DDC84?style=flat&logo=android&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=flat&logo=supabase&logoColor=white)
 
-- `app/`: aplicación Android Kotlin + Jetpack Compose.
-- `app/src/main/java/com/example/pagovoz/`: navegación, onboarding, captura de pagos, persistencia, voz y pantallas.
-- `app/src/main/res/`: recursos visuales, temas, iconos y configuración Android.
-- `docs/`: análisis, handoffs, QA, configuración y notas históricas.
-- `supabase/`: esquema y funciones SQL del backend de licencias, Premium y actualizaciones.
-- `index.html`: landing de descarga que se publica desde la raíz.
-- `gradle/`, `build.gradle.kts`, `settings.gradle.kts`: configuración de compilación.
+[⬇️ Descargar APK](../../releases)
 
-## Desarrollo
+</div>
 
-Se necesita Android Studio o el JDK/Android SDK configurado. Las claves y la firma local se cargan desde `local.properties`, que no se versiona.
+---
 
-```powershell
-.\gradlew.bat testDebugUnitTest
-.\gradlew.bat assembleRelease
-```
+Ideal para taxistas, para bodegas y ambulantes: detecta la notificación de pago y lo anuncia en voz alta.
 
-Las pruebas instrumentadas necesitan un dispositivo o emulador conectado.
+ Totalmente Gratis.
+ 
+## ✨ Qué hace
 
-## Notas
+- 🔊 Anuncia Yape y Plin por voz al instante
+- 📋 Historial y resumen del día
+- ⚙️ Voz, velocidad y tono configurables
+- 🔄 Recupera avisos tras desconexiones
+- 🩺 Diagnóstico del listener en 1 tap
 
-- El package/applicationId Android sigue siendo `com.example.pagovoz` para conservar la compatibilidad de instalación y actualización.
-- Los artefactos de compilación, capturas, logs y prototipos temporales se mantienen fuera del repositorio.
-- La auditoría más reciente está en `docs/AUDITORIA_2026-09-07.md`.
+## ⬇️ Instalar
+
+1. Descarga el APK desde [Releases](../../releases)
+2. Completa el onboarding y concede acceso a notificaciones
+3. Haz un pago de prueba y escúchalo
+
+> Requiere Android 8+, acceso a notificaciones y excluir la app de la optimización de batería.
+
