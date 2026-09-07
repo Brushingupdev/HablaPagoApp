@@ -24,6 +24,23 @@ local.properties
 *.jks
 *.keystore
 
+# Generated build and local tooling output
+/app/build/
+/build/
+/.codex-audit/
+/.kotlin/
+/.android-local/
+/.android-user-home/
+/.gradle-codex/
+/.gradle-local/
+/.gradle-user-home/
+*.log
+*.txt
+
+# Local design captures and scratch work (kept outside the repository)
+/shots/
+/scratch/
+
 # Gemini / CI generated folders
 .android-user-home/
 .gradle-user-home/

@@ -23,5 +23,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "PagoVoz"
+rootProject.name = "HablaPago"
 include(":app")

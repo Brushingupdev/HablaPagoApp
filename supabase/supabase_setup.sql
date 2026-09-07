@@ -118,12 +118,8 @@ INSERT INTO app_config (singleton, latest_version_code, latest_version_name, dow
 VALUES (true, 1, '1.0', 'https://example.com/download', false)
 ON CONFLICT (singleton) DO NOTHING;
 
--- Insertar cÃ³digos de prueba (cambiar antes de producciÃ³n)
-INSERT INTO licenses (code, gives_trial, is_premium, premium_until) VALUES
-('TEST123', true, true, NOW() + INTERVAL '7 days'),
-('DEMO456', true, true, NOW() + INTERVAL '7 days'),
-('PREMIUM789', false, true, NOW() + INTERVAL '365 days')
-ON CONFLICT (code) DO NOTHING;
+-- Eliminar codigos de demostracion conocidos si existieran de una instalacion anterior.
+DELETE FROM licenses WHERE code IN ('TEST123', 'DEMO456', 'PREMIUM789');
 
 -- ============================================
 -- ROW LEVEL SECURITY (RLS)
@@ -139,6 +135,13 @@ ALTER TABLE device_version_history ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow public read access for license validation" ON licenses;
 DROP POLICY IF EXISTS "Allow authenticated updates" ON licenses;
 DROP POLICY IF EXISTS "Allow authenticated inserts" ON licenses;
+DROP POLICY IF EXISTS "licenses_public_select" ON licenses;
+DROP POLICY IF EXISTS "licenses_authenticated_select" ON licenses;
+DROP POLICY IF EXISTS "licenses_deny_direct_access" ON licenses;
+CREATE POLICY "licenses_deny_direct_access"
+ON licenses FOR ALL TO PUBLIC
+USING (false)
+WITH CHECK (false);
 
 -- PolÃ­ticas para app_config (solo lectura pÃºblica)
 DROP POLICY IF EXISTS "Allow public read access to app config" ON app_config;
@@ -152,6 +155,16 @@ DROP POLICY IF EXISTS "Allow public insert to device_versions" ON device_version
 DROP POLICY IF EXISTS "Allow public update to device_versions" ON device_versions;
 DROP POLICY IF EXISTS "Allow public insert to device_version_history" ON device_version_history;
 DROP POLICY IF EXISTS "Allow public update to device_version_history" ON device_version_history;
+DROP POLICY IF EXISTS "device_versions_deny_direct_access" ON device_versions;
+DROP POLICY IF EXISTS "device_version_history_deny_direct_access" ON device_version_history;
+CREATE POLICY "device_versions_deny_direct_access"
+ON device_versions FOR ALL TO PUBLIC
+USING (false)
+WITH CHECK (false);
+CREATE POLICY "device_version_history_deny_direct_access"
+ON device_version_history FOR ALL TO PUBLIC
+USING (false)
+WITH CHECK (false);
 
 REVOKE ALL ON device_versions FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON device_version_history FROM PUBLIC, anon, authenticated;
@@ -190,7 +203,7 @@ BEGIN
     WHERE l.code = p_code
     LIMIT 1;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- FunciÃ³n para activar una licencia
 CREATE OR REPLACE FUNCTION activate_license(
@@ -236,7 +249,7 @@ BEGIN
 
     RETURN true;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- FunciÃ³n para consultar el estado premium del dispositivo
 CREATE OR REPLACE FUNCTION get_premium_status(
@@ -265,7 +278,7 @@ RETURNS TABLE (
         l.updated_at DESC NULLS LAST,
         l.created_at DESC NULLS LAST
     LIMIT 1;
-$$ LANGUAGE sql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE sql SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- Función para registrar versión del dispositivo
 CREATE OR REPLACE FUNCTION upsert_device_version(
@@ -319,17 +332,17 @@ BEGIN
         last_seen = NOW(),
         report_count = device_version_history.report_count + 1;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 REVOKE ALL ON FUNCTION validate_license(TEXT, TEXT) FROM PUBLIC;
 REVOKE ALL ON FUNCTION activate_license(TEXT, TEXT) FROM PUBLIC;
 REVOKE ALL ON FUNCTION get_premium_status(TEXT) FROM PUBLIC;
 REVOKE ALL ON FUNCTION upsert_device_version(TEXT, INTEGER, TEXT) FROM PUBLIC;
 
-GRANT EXECUTE ON FUNCTION validate_license(TEXT, TEXT) TO anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION activate_license(TEXT, TEXT) TO anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION get_premium_status(TEXT) TO anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION upsert_device_version(TEXT, INTEGER, TEXT) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION validate_license(TEXT, TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION activate_license(TEXT, TEXT) TO anon, service_role;
+GRANT EXECUTE ON FUNCTION get_premium_status(TEXT) TO anon, service_role;
+GRANT EXECUTE ON FUNCTION upsert_device_version(TEXT, INTEGER, TEXT) TO service_role;
 
 -- ============================================
 -- TRIGGERS
@@ -404,10 +417,10 @@ INSTRUCCIONES:
 3. Probar las funciones:
 
    -- Validar un cÃ³digo
-   SELECT * FROM validate_license('TEST123', 'device_test');
+   SELECT * FROM validate_license('CODIGO_DE_PRUEBA', 'device_test');
    
    -- Activar una licencia
-   SELECT activate_license('TEST123', 'device_test');
+   SELECT activate_license('CODIGO_DE_PRUEBA', 'device_test');
    
    -- Ver licencias activas
    SELECT * FROM licenses WHERE used = true;
@@ -433,13 +446,13 @@ INSTRUCCIONES:
 -- ============================================
 
 -- Consulta para limpiar licencias expiradas (ejecutar periÃ³dicamente)
-CREATE OR REPLACE VIEW expired_licenses AS
+CREATE OR REPLACE VIEW expired_licenses WITH (security_invoker = true) AS
 SELECT * FROM licenses 
 WHERE premium_until < NOW() 
 AND is_premium = true;
 
 -- Consulta para estadÃ­sticas
-CREATE OR REPLACE VIEW license_stats AS
+CREATE OR REPLACE VIEW license_stats WITH (security_invoker = true) AS
 SELECT
     COUNT(*) as total_licenses,
     COUNT(CASE WHEN used = true THEN 1 END) as used_licenses,
@@ -459,6 +472,11 @@ FROM device_versions
 GROUP BY version_name
 ORDER BY version_name;
 
+REVOKE ALL ON expired_licenses FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON license_stats FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON version_stats FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON expired_licenses, license_stats, version_stats TO service_role;
+
 -- Consulta para adopciÃ³n histÃ³rica por versiÃ³n
 CREATE OR REPLACE VIEW version_adoption_stats WITH (security_invoker = true) AS
 SELECT
@@ -470,3 +488,6 @@ SELECT
 FROM device_version_history
 GROUP BY version_name
 ORDER BY version_name;
+
+REVOKE ALL ON version_adoption_stats FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON version_adoption_stats TO service_role;
